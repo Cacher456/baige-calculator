@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>白葛速度反推计算器</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Microsoft YaHei", sans-serif;
+    background: #1a1a2e;
+    color: #e0e0e0;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 24px 16px;
+  }
+  .container {
+    width: 100%;
+    max-width: 520px;
+  }
+  h1 {
+    text-align: center;
+    font-size: 1.3rem;
+    color: #c9a84c;
+    margin-bottom: 20px;
+    letter-spacing: 2px;
+  }
+  .card {
+    background: #16213e;
+    border: 1px solid #2a3a5c;
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .card-title {
+    font-size: 0.85rem;
+    color: #7a8faa;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 14px;
+  }
+  .input-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 12px;
+    gap: 10px;
+  }
+  .input-row label {
+    width: 110px;
+    font-size: 0.95rem;
+    color: #c0cfe0;
+    flex-shrink: 0;
+  }
+  .input-row input[type="number"] {
+    flex: 1;
+    background: #0f3460;
+    border: 1px solid #2a4a7c;
+    border-radius: 6px;
+    color: #f0f0f0;
+    font-size: 1rem;
+    padding: 6px 10px;
+    outline: none;
+    transition: border-color 0.2s;
+    min-width: 0;
+  }
+  .input-row input[type="number"]:focus {
+    border-color: #c9a84c;
+  }
+  .hint {
+    font-size: 0.78rem;
+    color: #5a7090;
+    margin-left: 4px;
+  }
+  .checkboxes {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+  .checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    color: #c0cfe0;
+    user-select: none;
+  }
+  .checkbox-label input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: #c9a84c;
+    cursor: pointer;
+  }
+  .btn {
+    width: 100%;
+    padding: 12px;
+    background: linear-gradient(135deg, #c9a84c, #e8c96a);
+    color: #1a1a2e;
+    font-size: 1.05rem;
+    font-weight: bold;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    letter-spacing: 2px;
+    transition: opacity 0.2s, transform 0.1s;
+  }
+  .btn:hover { opacity: 0.9; transform: translateY(-1px); }
+  .btn:active { transform: translateY(0); }
+
+  .results { display: none; }
+  .results.show { display: block; }
+
+  .situation-block {
+    background: #16213e;
+    border: 1px solid #2a3a5c;
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin-bottom: 12px;
+  }
+  .situation-title {
+    font-size: 0.9rem;
+    color: #7a8faa;
+    margin-bottom: 10px;
+    letter-spacing: 1px;
+  }
+  .result-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    border-bottom: 1px solid #1e2e4a;
+    font-size: 0.95rem;
+  }
+  .result-row:last-child { border-bottom: none; }
+  .result-name { color: #a0b8d0; }
+  .result-value {
+    font-weight: bold;
+    color: #e8c96a;
+    font-size: 1rem;
+  }
+  .result-value.impossible { color: #e06060; }
+  .result-value.unlimited { color: #60c060; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>白葛速度反推计算器</h1>
+
+  <div class="card">
+    <div class="card-title">我方速度</div>
+    <div class="input-row">
+      <label>小白御魂速度</label>
+      <input type="number" id="xiaobaisu" value="151" min="0" max="300">
+      <span class="hint">基础111+被动60</span>
+    </div>
+    <div class="input-row">
+      <label>葛叶御魂速度</label>
+      <input type="number" id="kayosu" value="158" min="0" max="300">
+      <span class="hint">基础117+合守75</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">场上是否有不知火（离）</div>
+    <div class="checkboxes">
+      <label class="checkbox-label">
+        <input type="checkbox" id="wofangli"> 我方有离
+      </label>
+      <label class="checkbox-label">
+        <input type="checkbox" id="difangli"> 敌方有离
+      </label>
+    </div>
+  </div>
+
+  <button class="btn" onclick="calculate()">计 算</button>
+
+  <div class="results" id="results"></div>
+</div>
+
+<script>
+const ENEMIES = [
+  { name: "面灵气", base: 119, extra: 60 },
+  { name: "阎魔",   base: 127, extra: 0  },
+  { name: "SP阎魔", base: 123, extra: 0  },
+];
+
+function calcMax(xiaobaiSu, kayoSu, enemyBase, enemyExtra, wofangli, difangli) {
+  const xiaobaiBase = 111, xiaobaiPassive = 60;
+  const kayoBase = 117, kayoGuard = 75;
+  const liBonus = 25;
+
+  const barLen = xiaobaiBase + xiaobaiPassive + xiaobaiSu;
+  const kayoInit = kayoBase + kayoSu;
+  const kayoSpeed = kayoInit + kayoGuard + (wofangli ? liBonus : 0);
+  const kayoLeft = barLen - kayoInit;
+
+  if (kayoLeft <= 0) return "无限制";
+
+  const enemyLiBonus = difangli ? liBonus : 0;
+  const enemyTotalExtra = enemyExtra + enemyLiBonus;
+
+  const initCritical = (
+    kayoSpeed * barLen - kayoLeft * enemyTotalExtra
+  ) / (kayoLeft + kayoSpeed);
+
+  const suCritical = initCritical - enemyBase;
+
+  if (suCritical <= 0) return "无法超过";
+  return suCritical.toFixed(2);
+}
+
+function calculate() {
+  const xiaobaiSu = parseInt(document.getElementById("xiaobaisu").value) || 0;
+  const kayoSu    = parseInt(document.getElementById("kayosu").value) || 0;
+  const wofangli  = document.getElementById("wofangli").checked;
+  const difangli  = document.getElementById("difangli").checked;
+
+  const situations = [
+    { label: "双方都没有离", wo: false, di: false },
+    { label: "只有我方有离",  wo: true,  di: false },
+    { label: "只有敌方有离", wo: false, di: true  },
+    { label: "双方都有离",   wo: true,  di: true  },
+  ];
+
+  // 只展示当前选中的情况 + 所有情况
+  const selected = situations.find(s => s.wo === wofangli && s.di === difangli);
+  const others   = situations.filter(s => s !== selected);
+  const ordered  = [selected, ...others];
+
+  let html = "";
+  for (const s of ordered) {
+    const isSelected = s === selected;
+    html += `<div class="situation-block" style="${isSelected ? 'border-color:#c9a84c;' : ''}">`;
+    html += `<div class="situation-title">${isSelected ? "▶ " : ""}${s.label}</div>`;
+    for (const e of ENEMIES) {
+      const v = calcMax(xiaobaiSu, kayoSu, e.base, e.extra, s.wo, s.di);
+      let cls = "result-value";
+      if (v === "无法超过") cls += " impossible";
+      if (v === "无限制")   cls += " unlimited";
+      const display = (v !== "无法超过" && v !== "无限制") ? `< ${v}` : v;
+      html += `<div class="result-row">
+        <span class="result-name">${e.name} 御魂速度上限</span>
+        <span class="${cls}">${display}</span>
+      </div>`;
+    }
+    html += `</div>`;
+  }
+
+  const el = document.getElementById("results");
+  el.innerHTML = html;
+  el.classList.add("show");
+  el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+// 回车触发计算
+document.addEventListener("keydown", e => { if (e.key === "Enter") calculate(); });
+</script>
+</body>
+</html>
